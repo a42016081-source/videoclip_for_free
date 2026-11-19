@@ -1,4 +1,4 @@
-editor.pyimport asyncio, subprocess, logging
+import asyncio, subprocess, logging
 from pathlib import Path
 from subtitles import build_ass
 log = logging.getLogger(__name__)
