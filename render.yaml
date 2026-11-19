@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: youtube-clipper-bot
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - { key: BOT_TOKEN, sync: false }
+      - { key: ADMIN_IDS, sync: false }
+      - { key: GROQ_API_KEY, sync: false }
+      - { key: LLM_API_KEY, sync: false }
+      - { key: RENDER_EXTERNAL_URL, sync: false }
+      - { key: PING_INTERVAL, value: "5" }
+      - { key: MAX_JOBS, value: "2" }
+      - { key: MAX_TEMP_MB, value: "2048" }
+      - { key: FORCE_JOIN_CHANNEL, sync: false }
+      - { key: COOKIES_FILE, value: "" }
+      - { key: LOCAL_BOT_API_URL, value: "" }
