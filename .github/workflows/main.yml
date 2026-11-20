@@ -1,0 +1,59 @@
+name: Run Telegram bot
+
+on:
+  workflow_dispatch:          # manual start: Actions tab -> Run Telegram bot -> Run workflow
+  schedule:
+    - cron: "0 */6 * * *"     # restart every 6 h (a job can run max 6 h)
+
+# Only ONE bot instance at a time (two polling bots = Telegram "409 Conflict").
+# The new run waits until the old one has finished.
+concurrency:
+  group: telegram-bot
+  cancel-in-progress: false
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350      # stop cleanly before GitHub's 6 h hard limit
+    env:
+      BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+      ADMIN_IDS: ${{ secrets.ADMIN_IDS }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      FORCE_JOIN_CHANNEL: ${{ secrets.FORCE_JOIN_CHANNEL }}
+      MAX_JOBS: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - uses: actions/setup-node@v4      # yt-dlp needs node for YouTube's JavaScript challenges
+        with:
+          node-version: "22"
+
+      - name: System packages (ffmpeg + subtitle fonts)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg fontconfig fonts-noto-core fonts-noto-extra fonts-noto-color-emoji
+          for p in fonts-montserrat fonts-poppins fonts-bebas-neue fonts-anton fonts-comic-neue fonts-oswald; do
+            sudo apt-get install -y --no-install-recommends "$p" || true
+          done
+          fc-cache -f
+          echo "--js-runtimes node" | sudo tee /etc/yt-dlp.conf
+
+      - name: Python packages
+        run: pip install -r requirements.txt
+
+      - name: Cookies (optional, for YouTube bot-check)
+        env:
+          COOKIES_TXT: ${{ secrets.COOKIES_TXT }}
+        run: |
+          if [ -n "$COOKIES_TXT" ]; then
+            printf '%s' "$COOKIES_TXT" > "$RUNNER_TEMP/cookies.txt"
+            echo "COOKIES_FILE=$RUNNER_TEMP/cookies.txt" >> "$GITHUB_ENV"
+          fi
+
+      - name: Start bot
+        run: python bot.py
