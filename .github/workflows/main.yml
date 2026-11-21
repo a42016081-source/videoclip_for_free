@@ -3,7 +3,7 @@ name: Run Telegram bot
 on:
   workflow_dispatch:          # manual start: Actions tab -> Run Telegram bot -> Run workflow
   schedule:
-    - cron: "0 */6 * * *"     # restart every 6 h (a job can run max 6 h)
+    - cron: "0 */6 * * *"   # Mongo gate admits one scheduled run every 350 minutes
 
 # Only ONE bot instance at a time (two polling bots = Telegram "409 Conflict").
 # The new run waits until the old one has finished.
@@ -19,6 +19,10 @@ jobs:
       BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
       ADMIN_IDS: ${{ secrets.ADMIN_IDS }}
       GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+      SHAPELESSAI_API_KEY: ${{ secrets.SHAPELESSAI_API_KEY }}
+      MONGODB_URI: ${{ secrets.MONGODB_URI }}
+      MONGODB_DB: clipbot
       FORCE_JOIN_CHANNEL: ${{ secrets.FORCE_JOIN_CHANNEL }}
       MAX_JOBS: "1"
     steps:
@@ -48,12 +52,17 @@ jobs:
 
       - name: Cookies (optional, for YouTube bot-check)
         env:
-          COOKIES_TXT: ${{ secrets.COOKIES_TXT }}
+          COOKIES_SECRET: ${{ secrets.COOKIES_FILE }}
         run: |
-          if [ -n "$COOKIES_TXT" ]; then
-            printf '%s' "$COOKIES_TXT" > "$RUNNER_TEMP/cookies.txt"
+          if [ -n "$COOKIES_SECRET" ]; then
+            printf '%s' "$COOKIES_SECRET" > "$RUNNER_TEMP/cookies.txt"
             echo "COOKIES_FILE=$RUNNER_TEMP/cookies.txt" >> "$GITHUB_ENV"
           fi
 
+      - name: Claim 5h50m schedule slot
+        if: github.event_name == 'schedule'
+        run: python schedule_gate.py
+
       - name: Start bot
+        if: github.event_name == 'workflow_dispatch' || env.RUN_BOT == 'true'
         run: python bot.py
